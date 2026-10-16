@@ -1,0 +1,4 @@
+{
+  "description": "Experimental masked leave-one-out confidence and correction in CURRENT block only; counts probe calls; custom heuristic, not exact ReMDM.",
+  "sampling": {"steps": 256, "predictor": "ddpm_cache", "temperature": 1.0, "candidates": 8, "score_draws": 16, "score_formula": "target_length", "max_context_codes": null, "refinement_rounds": 1, "refinement_fraction": 0.25, "refinement_steps": 32, "past_mix_alpha": 1.0}
+}

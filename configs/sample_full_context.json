@@ -1,0 +1,4 @@
+{
+  "description": "Full-prefix generation on 512 or 8192 tokens; no compression or 112-code cap.",
+  "sampling": {"steps": 256, "predictor": "ddpm_cache", "temperature": 1.0, "candidates": 8, "score_draws": 16, "score_formula": "target_length", "max_context_codes": null, "refinement_rounds": 0, "past_mix_alpha": 1.0}
+}

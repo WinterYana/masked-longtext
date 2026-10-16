@@ -1,0 +1,34 @@
+# Codec provenance and adaptations
+
+Source: `masked_reference` commit `3ff606831e48be8069cb42a2afffa666051d53fa`, selected branch `mdlm-prefix-block-noisy-past-512-rw128`. Only that commit was read, using `git show`; the reference checkout was not changed. The five vendored files derive from `autoencoder/models/{vq_vae_2,gpt_blocks,compress_sequence,decompress_sequence,attention_utils}.py`. The historical `hierarchical_models.py` is a re-export shim, so it is unnecessary here.
+
+The architecture follows the commit's `train_vq_vae.py` builders and `vqvae_io.py` default flags: two 2× encoders, two 2× decoders, intermediate decoder without fusion and final decoder with top-latent fusion. The top quantizer quantizes the second encoder output; the bottom quantizer quantizes the intermediate decoder reconstruction. The top reconstruction target is the detached first encoder output. The objective remains text CE + two embedding losses + two weighted commitment losses + weighted top reconstruction MSE. Time is fixed to one, following the extraction/decoding convention. Neighbour and teacher-semantic auxiliary losses are disabled explicitly: this standalone baseline has no external teacher or implicit downloads.
+
+The actual historical checkpoint/configuration is unavailable. Defaults restore the explicit source-builder dimensions (384, 6 heads, 3 layers), 512 codes per codebook, and source training defaults beta=0.05, EMA=True, EMA decay=0.99. These are reproducible settings, not proof of exact historical model identity or quality.
+
+## Changes
+
+- Local relative imports and pure PyTorch dependencies; unused NumPy/distributed imports in GPT are removed.
+- `TokenProjection` subclasses `nn.Linear`: integer tokens select `weight.T` rows, then add any existing bias. Floating one-hot/soft inputs use the original linear operation. The weight `[dim,vocab]` layout and optional bias are retained; no text one-hot allocation is needed. Lookup output is cast to the active autocast dtype to match the original linear mixed-precision path. Intermediate stages retain the source builders' identity input projection.
+- Configurable local convolution dropout retains source default 0.1. Compression, rotary attention, squared-ReLU MLPs, adaptive norms, local convolutions, anti-alias/pair downsampling, upsampling and gated fusion are preserved.
+- GPT exposes hidden states before the final vocabulary head. The wrapper computes exact mean CE over sequence chunks; optional nonreentrant checkpointing recomputes only the deterministic final head during backward. Neither encoder nor quantizer is recomputed, so quantizer updates occur exactly once per training forward. Chunk size 0 uses a full head; 256 is the explicit default. This bounds vocabulary-logit activation memory during codec training, but full `decode_codes` still returns all vocabulary logits as required by its interface. Transformer attention still scales quadratically with length.
+- Quantizer distance arithmetic disables autocast on the input's device, rather than choosing CUDA based on global availability. Noncontiguous latent inputs use reshape. Source EMA initialization, count/vector EMA, Laplace smoothing, usage tracking, first-batch seeding, straight-through estimator and dead-code replacement are retained.
+- The source distributed dead-code reinitialization returned on nonzero ranks before broadcasts; all ranks now participate, with mutations restricted to rank zero. Distributed execution has not been tested.
+- Single-code sequences retain their batch axis during decoding; the source unconditional `squeeze(-1)` removed that axis for `[B,1]` inputs.
+- Rotary caches refresh after a device move and frequencies are constructed on the input device. The source bfloat16 rotary lookup precision is retained.
+- `encode_codes` runs only the two encoders/top lookup, as the intermediate decoder and bottom lookup cannot affect top IDs. Both extraction and decoding temporarily use eval/no-grad and restore exact per-module training flags after success or exception. They never seed, update or replace codebook entries.
+- Nonempty `[B,L]` int64 inputs, value ranges, device agreement and text lengths divisible by four are checked before model work. Codes exclude MASK and implicit PAD. Forward returns scalar loss/diagnostic tensors, rather than retaining full reconstruction logits.
+
+## Interfaces
+
+`CodecConfig(vocab_size, codebook_size=512, dim=384, num_heads=6, num_layers=3, beta=0.05, use_ema=True, ema_decay=0.99, top_recon_loss_weight=0.2, conv_dropout=0.1, dead_code_check_every=1000, dead_code_warmup_updates=1000, dead_code_threshold=1e-4, dead_code_max_reinit=32, logit_chunk_size=256, checkpoint_reconstruction=True)` is a frozen dataclass; `dataclasses.asdict` is JSON serializable. `compression_factor` is a read-only property equal to four.
+
+`TextCodec(config).forward(tokens)` returns scalar tensors: `loss`, `ce`, `embedding_loss`, `commitment_loss`, `top_reconstruction_loss`, `perplexity_down`, `perplexity_top`, `alive_codes_down`, `alive_codes_top`. `encode_codes(tokens)` returns int64 `[B,L/4]`; `decode_codes(codes)` returns float32 `[B,4L,V]`. `decode_token_ids(codes)` returns int64 `[B,4L]` by jointly decoding the full sequence features and chunking only the final vocabulary projection/argmax. It preserves the full context of attention and convolution; it does not decode independently cut latent subsequences. Underlying adapted `VQ_VAE_2` is available as `.model`; configuration is `.config`.
+
+Wrapper state keys start with `model.`. Raw historical state loading is intentionally not inferred automatically: strict conversion must compare architecture flags, complete dimensions, enabled heads, codebook settings and source provenance first. A portable standalone checkpoint must store this configuration and load its complete state strictly.
+
+## Verification status
+
+The regression tests were written before the wrapper implementation. They cover lookup/dense outputs and gradients (including optional bias, soft input and autocast output dtype), 4× shapes including a single code, update counts, EMA arithmetic, straight-through gradients, mixed-mode/exception restoration, invalid inputs, chunked CE gradients, strict state roundtrip, equivalence to the adapted reference objective and chunked token-ID decoding equivalence to full joint-logit argmax.
+
+The user's subsequent instruction explicitly prohibits model/test/training execution on this machine. **Runtime tests were not run**, and no red/green runtime result or model quality is claimed. No model or training command ran before that instruction. Only source inspection and static parsing were performed. The intended future CPU command is `diffusion/.venv/Scripts/python.exe -m pytest diffusion/mask_diffusion/masked_longtext/tests/test_codec.py` with the package directory on `PYTHONPATH`; the tests limit Torch to one thread.

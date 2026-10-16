@@ -1,0 +1,7 @@
+{
+  "description": "Long adaptation with full prefix and no context compression. --init must use the SAME final codec.",
+  "text_length": 8192,
+  "model": {"codebook_size": 512, "hidden_size": 512, "n_blocks": 8, "n_heads": 8, "cond_dim": 128, "dropout": 0.1, "time_conditioning": false, "block_length": 16, "activation_checkpointing": true},
+  "loss": {"sampling_eps": 0.00001, "noise_eps": 0.001, "antithetic_sampling": true, "past_code_corruption_p": 0.2, "past_label_smoothing": 0.0},
+  "training": {"steps": 10000, "microbatch": 1, "accumulation": 64, "lr": 0.00003, "weight_decay": 0.01, "warmup_steps": 500, "precision": "bf16", "seed": 42, "max_context_codes": null, "context_policy": "all", "context_zero_p": 0.1, "context_full_p": 0.55, "validation_every": 500, "validation_batches": 8, "checkpoint_every": 500}
+}

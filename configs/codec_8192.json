@@ -1,0 +1,6 @@
+{
+  "description": "Long codec adaptation with --init from the 512 stage. Inspect reconstruction before encoding final prior data.",
+  "text_length": 8192,
+  "model": {"vocab_size": 50257, "codebook_size": 512, "dim": 384, "num_heads": 6, "num_layers": 3, "beta": 0.05, "use_ema": true, "ema_decay": 0.99, "top_recon_loss_weight": 0.2, "conv_dropout": 0.1, "logit_chunk_size": 128, "checkpoint_reconstruction": true},
+  "training": {"steps": 5000, "microbatch": 1, "accumulation": 16, "lr": 0.00003, "weight_decay": 0.01, "warmup_steps": 250, "min_lr_ratio": 0.1, "grad_clip": 1.0, "precision": "bf16", "seed": 42, "validation_every": 250, "validation_batches": 8, "checkpoint_every": 250, "log_every": 20}
+}

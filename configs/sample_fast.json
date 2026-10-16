@@ -1,0 +1,4 @@
+{
+  "description": "Single-candidate full-prefix control; steps are not equal to measured denoiser calls.",
+  "sampling": {"steps": 64, "predictor": "ddpm_cache", "temperature": 1.0, "candidates": 1, "score_draws": 16, "score_formula": "target_length", "max_context_codes": null, "refinement_rounds": 0, "past_mix_alpha": 1.0}
+}

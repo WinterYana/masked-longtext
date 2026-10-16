@@ -1,0 +1,7 @@
+{
+  "description": "Corrected reference-method control. Explicit reconstructed tiny DiT, not an exact historical checkpoint reproduction.",
+  "text_length": 512,
+  "model": {"codebook_size": 512, "hidden_size": 512, "n_blocks": 8, "n_heads": 8, "cond_dim": 128, "dropout": 0.1, "time_conditioning": false, "block_length": 16, "activation_checkpointing": false},
+  "loss": {"sampling_eps": 0.00001, "noise_eps": 0.001, "antithetic_sampling": true, "past_code_corruption_p": 0.2, "past_label_smoothing": 0.0},
+  "training": {"steps": 20000, "microbatch": 8, "accumulation": 8, "lr": 0.0001, "weight_decay": 0.01, "warmup_steps": 500, "precision": "bf16", "seed": 42, "max_context_codes": 112, "context_policy": "legacy", "context_zero_p": 0.1, "context_full_p": 0.55, "validation_every": 500, "checkpoint_every": 500}
+}
